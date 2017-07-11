@@ -203,14 +203,6 @@ logger.log(Level.FINER, "{0}", props);
         }
     }
     
-    public InputStream getResourceAsStream(String path) {
-        return Thread.currentThread().getContextClassLoader().getResourceAsStream(path);
-    }
-    
-    public URL getResource(String resourcePath) {
-        return Thread.currentThread().getContextClassLoader().getResource(resourcePath);
-    }
-    
     public InputStream getInputStream(String path) throws FileNotFoundException {
         InputStream in = this.getResourceAsStream(path);
         if(in == null) {
@@ -252,6 +244,19 @@ logger.log(Level.FINER, "InputStream: {0}", in);
         final URI uri = url.toURI();
         
         return this.getPath(uri, outputIfNone);
+    }
+    
+    public InputStream getResourceAsStream(String path) {
+        return this.getClassLoader().getResourceAsStream(path);
+    }
+    
+    public URL getResource(String resourcePath) {
+        return this.getClassLoader().getResource(resourcePath);
+    }
+    
+    public ClassLoader getClassLoader() {
+        final ClassLoader loader = Thread.currentThread().getContextClassLoader();
+        return loader;
     }
     
     public Path getPath(URI uri, Path outputIfNone) {
