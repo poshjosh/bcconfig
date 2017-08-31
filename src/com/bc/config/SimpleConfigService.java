@@ -18,7 +18,9 @@ package com.bc.config;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Objects;
+import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -26,10 +28,10 @@ import java.util.logging.Logger;
  * @author Chinomso Bassey Ikwuagwu on Jul 27, 2016 11:38:22 PM
  */
 public class SimpleConfigService extends AbstractConfigService {
-
+    
     private transient final Logger logger = Logger.getLogger(SimpleConfigService.class.getName());
     
-    private final String [] defaultPaths;
+    private final Set<String> [] defaultPaths;
     
     private final String [] paths;
 
@@ -71,10 +73,40 @@ public class SimpleConfigService extends AbstractConfigService {
     }
     
     public SimpleConfigService(
-            ConfigGroup configuration,
+            ConfigGroup configuration, String [] defaultPaths, 
+            String [] paths,  String timePattern, boolean useCache) { 
+        
+        this(Thread.currentThread().getContextClassLoader(), configuration, 
+                defaultPaths, paths, timePattern, useCache);
+    }
+    
+    public SimpleConfigService(
+            ClassLoader classLoader, ConfigGroup configuration,
             String [] defaultPaths, String [] paths,  String timePattern, boolean useCache) { 
         
-        super(configuration, timePattern, useCache);
+        super(classLoader, configuration, timePattern, useCache);
+        
+        if(defaultPaths == null) {
+            this.defaultPaths = null;
+        }else{
+            this.defaultPaths = new Set[defaultPaths.length];
+            for(int i=0; i<defaultPaths.length; i++) {
+                this.defaultPaths[i] = Collections.singleton(defaultPaths[i]);
+            }
+        }
+        
+        this.paths = Objects.requireNonNull(paths);
+        
+if(logger.isLoggable(Level.INFO))        
+logger.log(Level.INFO, "  Defaults: {0}\nProperties: {1}", 
+new Object[]{this.defaultPaths==null?null:Arrays.toString(defaultPaths), Arrays.toString(paths)});
+    }
+        
+    public SimpleConfigService(
+            ClassLoader classLoader, ConfigGroup configuration,
+            Set<String> [] defaultPaths, String [] paths,  String timePattern, boolean useCache) { 
+        
+        super(classLoader, configuration, timePattern, useCache);
         
         this.defaultPaths = defaultPaths;
         
@@ -92,15 +124,15 @@ new Object[]{this.defaultPaths==null?null:Arrays.toString(defaultPaths), Arrays.
         
         for(int i=0; i<this.paths.length; i++) {
             
-            final String defaultPath = defaultPaths == null ? null : defaultPaths[i];
+            final String [] defaultPathArr = defaultPaths == null ? null : defaultPaths[i].toArray(new String[0]);
             final String path = paths[i];
             
 if(logger.isLoggable(Level.CONFIG))            
-logger.log(Level.CONFIG, "Loading: {0} over {1}", new Object[]{path, defaultPath}); 
+logger.log(Level.CONFIG, "Loading: {0} over {1}", new Object[]{path, defaultPathArr}); 
 
             // If use cache is true add the loaded properties to the cache
             //
-            final Config config = this.load(defaultPath, path);
+            final Config config = this.load(defaultPathArr, path);
             
             output.put(this.getName(path), config);
         }
@@ -124,12 +156,15 @@ logger.log(Level.CONFIG, "Loading: {0} over {1}", new Object[]{path, defaultPath
     }
     
     @Override
-    public String getDefaultPath(String filename) {
-        if(filename == null) {
-            return null;
+    public String [] getDefaultPaths(String filename) {
+        final String [] output;
+        if(filename == null || this.defaultPaths == null) {
+            output = null;
+        }else{
+            
+            output = new String[]{this.getPathForName(this.defaultPaths, filename)};
         }
-        String defaultPath = this.getPathForName(this.defaultPaths, filename);
-        return defaultPath;
+        return output;
     }
 
     @Override
@@ -140,9 +175,20 @@ logger.log(Level.CONFIG, "Loading: {0} over {1}", new Object[]{path, defaultPath
     }
     
     private String getPathForName(String [] arr, String name) {
-        for(String e:arr) {
+        for(String e : arr) {
             if(e.endsWith(name)) {
                 return e;
+            }
+        }
+        throw new NullPointerException();
+    }
+
+    private String getPathForName(Set<String> [] arrayOfSets, String name) {
+        for(Set<String> set : arrayOfSets) {
+            for(String e : set) {
+                if(e.endsWith(name)) {
+                    return e;
+                }
             }
         }
         throw new NullPointerException();

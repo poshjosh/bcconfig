@@ -34,6 +34,8 @@ public interface ConfigService {
     ConfigGroup load() throws IOException;
     
     Config load(String defaultPath, String path) throws IOException;
+    
+    Config load(String [] defaultPaths, String path) throws IOException;
 
     Config loadByName(String defaultFilename, String filename) throws IOException;
 

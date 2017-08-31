@@ -46,26 +46,40 @@ public class CompositeConfig extends AbstractConfig {
     private final List<Properties> propsList;
 
     public CompositeConfig(ConfigService configService) throws IOException {
-        this(configService.load().values(), configService.getTimePattern());
+        this(configService, false);
+    }
+    
+    public CompositeConfig(ConfigService configService, boolean allowDuplicates) throws IOException {
+        this(configService.load().values(), configService.getTimePattern(), allowDuplicates);
     }
     
     public CompositeConfig(Collection<Config> configs) {
         this(configs, null);
     }
     
+    public CompositeConfig(Collection<Config> configs, boolean allowDuplicates) {
+        this(configs, null, allowDuplicates);
+    }
+    
     public CompositeConfig(Collection<Config> configs, String timePattern) {
+        this(configs, timePattern, false);
+    }
+    
+    public CompositeConfig(Collection<Config> configs, String timePattern, boolean allowDuplicates) {
         super(timePattern);
         final List<Properties> list = new ArrayList(configs.size());
         final Set<String> allNames = new HashSet<>();
         for(Config config : configs) {
             final Properties props = config.getProperties();
-            final Set<String> names = props.stringPropertyNames();
-            for(String name : names) {
-                if(allNames.contains(name)) {
-                    throw new UnsupportedOperationException("Property '"+name+"' is duplicated");
+            if(!allowDuplicates) {
+                final Set<String> names = props.stringPropertyNames();
+                for(String name : names) {
+                    if(allNames.contains(name)) {
+                        throw new UnsupportedOperationException("Property '"+name+"' is duplicated");
+                    }
                 }
+                allNames.addAll(names);
             }
-            allNames.addAll(names);
             list.add(props);
         }
         this.propsList = Collections.unmodifiableList(list);

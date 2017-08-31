@@ -69,12 +69,23 @@ public class DirConfigService extends AbstractConfigService {
         );
     }
     
+    public DirConfigService(ConfigGroup configuration,
+            String defaultPropertiesDir, String propertiesDir, 
+            FilenameFilter filenameFilter,  String timePattern, boolean useCache) {
+        this(
+                Thread.currentThread().getContextClassLoader(),
+                configuration,
+                defaultPropertiesDir, propertiesDir,
+                filenameFilter, timePattern, useCache
+        );
+    } 
+    
     public DirConfigService(
-            ConfigGroup configuration,
+            ClassLoader classLoader, ConfigGroup configuration,
             String defaultPropertiesDir, String propertiesDir, 
             FilenameFilter filenameFilter,  String timePattern, boolean useCache) { 
         
-        super(configuration, timePattern, useCache);
+        super(classLoader, configuration, timePattern, useCache);
         
         this.defaultPropertiesDir = defaultPropertiesDir;
         
@@ -128,14 +139,15 @@ logger.log(Level.CONFIG, "Loading: {0}", name);
     }
 
     @Override
-    public String getDefaultPath(String filename) {
+    public String [] getDefaultPaths(String filename) {
         if(filename == null) {
             return null;
         }
         if(this.defaultPropertiesDir == null) {
             return null;
+        }else{
+            return new String[]{this.defaultPropertiesDir + File.separatorChar + filename};
         }
-        return this.defaultPropertiesDir + File.separatorChar + filename;
     }
 
     @Override

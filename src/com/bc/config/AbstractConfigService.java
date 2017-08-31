@@ -50,13 +50,18 @@ public abstract class AbstractConfigService implements ConfigService {
     
     private final ConfigGroup cachedConfigs;
     
-    public AbstractConfigService(String timePattern, boolean useCache) { 
+    private final ClassLoader classLoader;
+    
+    public AbstractConfigService(String timePattern) { 
         
-        this(new ConfigGroupImpl(), timePattern, useCache);
+        this(Thread.currentThread().getContextClassLoader(), new ConfigGroupImpl(), timePattern, true);
     }
     
     public AbstractConfigService(
-            ConfigGroup cache, String timePattern, boolean useCache) { 
+            ClassLoader classLoader, ConfigGroup cache, 
+            String timePattern, boolean useCache) {
+        
+        this.classLoader = Objects.requireNonNull(classLoader);
         
         this.cachedConfigs = Objects.requireNonNull(cache);
         
@@ -65,7 +70,7 @@ public abstract class AbstractConfigService implements ConfigService {
         this.useCache = useCache;
     }
 
-    public abstract String getDefaultPath(String filename);
+    public abstract String [] getDefaultPaths(String filename);
 
     public abstract String getPath(String filename);
     
@@ -83,7 +88,7 @@ public abstract class AbstractConfigService implements ConfigService {
     
     @Override
     public String loadPropertyFor(String defaultfilename, String filename, String key, String defaultValue) throws IOException{
-        Config properties = this.load(this.getDefaultPath(defaultfilename), this.getPath(filename));
+        Config properties = this.load(this.getDefaultPaths(defaultfilename), this.getPath(filename));
         return properties.getProperty(key, defaultValue);
     }
     
@@ -96,14 +101,14 @@ public abstract class AbstractConfigService implements ConfigService {
     
     @Override
     public void storePropertyFor(String defaultfilename, String filename, String key, String value) throws IOException{
-        Config properties = this.load(this.getDefaultPath(defaultfilename), this.getPath(filename));
+        Config properties = this.load(this.getDefaultPaths(defaultfilename), this.getPath(filename));
         properties.setProperty(key, value);
         this.storeByName(filename);
     }
 
     @Override
     public Config loadByName(String defaultFilename, String filename) throws IOException{
-        return load(this.getDefaultPath(defaultFilename), this.getPath(filename));
+        return load(this.getDefaultPaths(defaultFilename), this.getPath(filename));
     }
     
     @Override
@@ -113,7 +118,12 @@ public abstract class AbstractConfigService implements ConfigService {
     
     @Override
     public Config load(String defaultPath, String path) throws IOException {
+        return load(new String[]{defaultPath}, path);
+    }
 
+    @Override
+    public Config load(String [] defaultPaths, String path) throws IOException {
+        
         final String name = this.getName(path);
         
         Config output = null;
@@ -125,9 +135,15 @@ public abstract class AbstractConfigService implements ConfigService {
         if(output == null) {
             
             Properties defaults = null;
-            if(defaultPath != null) {
-                defaults = new Properties();
-                load(defaults, defaultPath);
+            if(defaultPaths != null) {
+                for(String defaultPath : defaultPaths) {
+                    if(defaults == null) {
+                        defaults = new Properties();
+                    }else{
+                        defaults = new Properties(defaults);
+                    }
+                    load(defaults, defaultPath);
+                }
             }
 
             Properties outputProps = new Properties(defaults);
@@ -148,7 +164,7 @@ public abstract class AbstractConfigService implements ConfigService {
     }
 
     public void load(Properties props, String path) throws IOException {
-
+        
         try(InputStream in = getInputStream(path)){
 
 logger.log(Level.FINER, "Loading properties from: {0}", path);           
@@ -162,7 +178,7 @@ logger.log(Level.FINER, "Loading properties from: {0}", path);
 Level level = this.useCache ? Level.INFO : Level.FINE;
 
 if(logger.isLoggable(level))            
-logger.log(level, "From: {0} loaded properties:\n{1}", new Object[]{path, props.stringPropertyNames()});           
+logger.log(level, "  From: {0}\nLoaded: {1}", new Object[]{path, props.stringPropertyNames()});           
         }
     }
 
@@ -255,8 +271,7 @@ logger.log(Level.FINER, "InputStream: {0}", in);
     }
     
     public ClassLoader getClassLoader() {
-        final ClassLoader loader = Thread.currentThread().getContextClassLoader();
-        return loader;
+        return this.classLoader;
     }
     
     public Path getPath(URI uri, Path outputIfNone) {
